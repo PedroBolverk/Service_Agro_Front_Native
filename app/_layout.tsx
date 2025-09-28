@@ -1,4 +1,3 @@
-// app/_layout.tsx
 import { Slot, useSegments, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { useAuth } from '../src/store/auth';
@@ -9,22 +8,34 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
 
-  useEffect(() => { rehydrate(); }, []);
+  useEffect(() => {
+    rehydrate();
+  }, []);
 
   useEffect(() => {
     if (loading) return;
+
     const inAuth = segments[0] === '(auth)';
     if (!token || !user) {
-      if (!inAuth) router.replace('/login');               
+      if (!inAuth) {
+        router.replace('/(auth)/login');
+      }
     } else {
       if (inAuth) {
-        router.replace(user.role === 'PRODUCER' ? '/producer' : '/mechanic');
+        // Redireciona baseado no papel do usuário
+        const route = user.role === 'PRODUCER' ? '/(tabs)/index' : '/(tabs)/map';
+        router.replace(route as any);  // Corrigido para usar a variável `route` corretamente
       }
     }
   }, [token, user, loading, segments]);
 
   if (loading) {
-    return <View style={{flex:1,alignItems:'center',justifyContent:'center'}}><ActivityIndicator/></View>;
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
   }
+
   return <Slot />;
 }

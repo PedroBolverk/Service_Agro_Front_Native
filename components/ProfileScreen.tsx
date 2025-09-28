@@ -114,7 +114,7 @@ export default function ProfileScreen({ userType }: ProfileScreenProps) {
                 {user.role === 'MECHANIC' ? 'Mecânico' : 'Produtor Rural'}
               </Text>
               <Text style={{ color: '#666', fontSize: 14 }}>
-                {profile.specialty || 'Sem especialidade'}
+                {user.role === 'MECHANIC' ? profile.specialty : null}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                 <Icon name="star" size={16} color="#FFD700" />

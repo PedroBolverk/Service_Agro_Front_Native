@@ -4,7 +4,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setAuthToken } from '../lib/api';
 
 type Role = 'PRODUCER' | 'MECHANIC';
-export type User = { id: string; email: string; role: Role; fullName: string; specialty: string };
+
+export type User = {
+  id: string;
+  email: string;
+  role: Role;
+  fullName: string;
+  specialty: string;
+  producer?: { // Aqui estamos assumindo que o produtor pode ter algumas informações específicas.
+    photoUrl?: string;
+    // Outros campos que você pode precisar para o produtor
+  };
+};
 
 const TOKEN_KEY = 'svcagroToken';
 const USER_KEY = 'svcagroUser';
@@ -49,7 +60,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   signIn: async (email, password) => {
-    const res = await api('/auth/login', { method: 'POST', body: { email, password } });
+    const res = await api('/auth/login', {
+      method: 'POST',
+      body: { email, password }
+    });
+
     if (!res?.token) throw new Error('Token ausente na resposta de login');
 
     await SecureStore.setItemAsync(TOKEN_KEY, String(res.token));
@@ -60,8 +75,8 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   signUp: async (p) => {
-    await api('/usuarios', { method: 'POST', body: p }); 
-    await get().signIn(p.email, p.password);             
+    await api('/usuarios', { method: 'POST', body: p });
+    await get().signIn(p.email, p.password);
   },
 
   signOut: async () => {

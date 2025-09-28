@@ -1,15 +1,9 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  Modal 
-} from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome'; // Usando FontAwesome para ícones
-import { useAuth } from '@/store/auth';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { useAuth } from '../src/store/auth'; // Certifique-se de que o hook useAuth está retornando o 'user'
+import { useRouter } from 'expo-router';
+import axios from 'axios'; // Biblioteca para fazer requisições HTTP
 
 interface ServiceRequestData {
   machineType: string;
@@ -45,12 +39,14 @@ const urgencyLevels = [
 ];
 
 export function ServiceRequestScreen() {
+  const { user } = useAuth(); // Obter o usuário autenticado do hook useAuth
   const [requestData, setRequestData] = useState<ServiceRequestData>({
     machineType: '',
     description: '',
-    urgency: 'media'
+    urgency: 'media',
   });
-  
+
+  const router = useRouter();
   const [showMachineTypePicker, setShowMachineTypePicker] = useState(false);
   const [showUrgencyPicker, setShowUrgencyPicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +56,7 @@ export function ServiceRequestScreen() {
       ...prev,
       machineType: machineType.id
     }));
-    setShowMachineTypePicker(false); // Fecha o modal após selecionar
+    setShowMachineTypePicker(false);
   };
 
   const handleUrgencySelect = (urgency: typeof urgencyLevels[0]) => {
@@ -68,7 +64,7 @@ export function ServiceRequestScreen() {
       ...prev,
       urgency: urgency.id as 'baixa' | 'media' | 'alta'
     }));
-    setShowUrgencyPicker(false); // Fecha o modal após selecionar
+    setShowUrgencyPicker(false);
   };
 
   const handleSubmit = async () => {
@@ -87,29 +83,28 @@ export function ServiceRequestScreen() {
       return;
     }
 
+    if (!user) {
+      alert('Usuário não autenticado!');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const serviceRequest = {
-        id: `req-${Date.now()}`,
-        machineType: requestData.machineType,
+      const response = await axios.post('http://192.168.1.101:3000/solicitacoes-servicos', {
+        producerId: user.id, // Usando o ID do usuário autenticado
         description: requestData.description.trim(),
-        urgency: requestData.urgency,
-        status: 'ABERTA',
-        createdAt: new Date().toISOString(),
-        location: requestData.location
-      };
-
-      console.log('Solicitação criada:', serviceRequest);
-      alert('Sucesso! Sua solicitação foi enviada.');
-
-      setRequestData({
-        machineType: '',
-        description: '',
-        urgency: 'media'
+        machineType: requestData.machineType,
+        locationLat: requestData.location?.latitude,
+        locationLng: requestData.location?.longitude,
+        status: 'ABERTA', // O status inicial da solicitação
       });
+
+      if (response.status === 201) {
+        alert('Sucesso! Sua solicitação foi enviada.');
+        // Redireciona para a aba do mapa após a solicitação ser criada
+        router.push('/(tabs)/map');
+      }
 
     } catch (error) {
       console.error('Erro ao enviar solicitação:', error);
@@ -192,7 +187,7 @@ export function ServiceRequestScreen() {
           onChangeText={(text) => setRequestData(prev => ({
             ...prev, 
             description: text
-          }))}
+          }))} 
         />
         <Text style={styles.charCounter}>
           {requestData.description.length} / 500 caracteres
@@ -202,21 +197,11 @@ export function ServiceRequestScreen() {
       {/* Submit Button */}
       <View style={styles.submitContainer}>
         <TouchableOpacity
-          style={[
-            styles.submitButton, 
-            !requestData.machineType || !requestData.description.trim() || isSubmitting 
-              ? styles.submitButtonDisabled 
-              : {}
-          ]}
+          style={[styles.submitButton, !requestData.machineType || !requestData.description.trim() || isSubmitting ? styles.submitButtonDisabled : {}]}
           onPress={handleSubmit}
           disabled={!requestData.machineType || !requestData.description.trim() || isSubmitting}
         >
-          <Text style={[
-            styles.submitButtonText, 
-            !requestData.machineType || !requestData.description.trim() || isSubmitting 
-              ? styles.submitButtonTextDisabled 
-              : {}
-          ]}>
+          <Text style={[styles.submitButtonText, !requestData.machineType || !requestData.description.trim() || isSubmitting ? styles.submitButtonTextDisabled : {}]}>
             {isSubmitting ? 'Enviando...' : 'Solicitar Atendimento'}
           </Text>
         </TouchableOpacity>

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Alert,
   ActivityIndicator,
@@ -15,9 +14,15 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Tipos
+
+interface MechanicDashBoardProps {
+  token: string;
+}
+
 interface Assignment {
   id: string;
   status: 'PENDENTE' | 'ACEITA' | 'RECUSADA' | 'CANCELADA';
@@ -83,7 +88,7 @@ const mockAssignments: Assignment[] = [
     }
   },
   {
-    id: "attr-2", 
+    id: "attr-2",
     status: "PENDENTE",
     createdAt: "2024-01-15T14:20:00Z",
     solicitacaoServico: {
@@ -118,47 +123,10 @@ const mockAssignments: Assignment[] = [
         email: "roberto@agrofazenda.com.br"
       }
     }
-  },
-  {
-    id: "attr-4",
-    status: "RECUSADA",
-    createdAt: "2024-01-13T16:00:00Z",
-    decidedAt: "2024-01-13T17:30:00Z",
-    solicitacaoServico: {
-      id: "sol-4",
-      description: "Pulverizador com bicos entupidos e problema na bomba de pressão.",
-      machineType: "Pulverizador",
-      status: "ABERTA",
-      createdAt: "2024-01-13T15:00:00Z",
-      producer: {
-        fullName: "Ana Costa",
-        phone: "(11) 96543-2109",
-        email: "ana.costa@email.com"
-      }
-    }
-  },
-  {
-    id: "attr-5",
-    status: "ACEITA",
-    createdAt: "2024-01-12T10:00:00Z",
-    decidedAt: "2024-01-12T11:00:00Z",
-    solicitacaoServico: {
-      id: "sol-5",
-      description: "Manutenção preventiva em trator Massey Ferguson 4292. Revisão completa antes da safra.",
-      machineType: "Trator",
-      status: "CONCLUIDA",
-      createdAt: "2024-01-12T09:00:00Z",
-      producer: {
-        fullName: "Pedro Nascimento",
-        phone: "(11) 95432-1098",
-        email: "pedro@rural.com"
-      }
-    }
   }
 ];
 
-export function MechanicDashboardComplete() {
-  // Estados
+export default function MechanicDashboardComplete({ token }: MechanicDashBoardProps) {
   const [assignments, setAssignments] = useState<Assignment[]>(mockAssignments);
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed'>('pending');
   const [isLoading, setIsLoading] = useState(false);
@@ -176,8 +144,9 @@ export function MechanicDashboardComplete() {
     try {
       setIsLoading(true);
       // Aqui você faria a chamada real para a API
-      const token = await AsyncStorage.getItem('authToken');
       if (token) {
+        // Simulação de chamada API
+        console.log('Autorização com token:', token);
         // const response = await fetch(`/api/atribuicoes-servicos?mechanicId=${mockUser.id}`, {
         //   headers: { 'Authorization': `Bearer ${token}` }
         // });
@@ -203,21 +172,16 @@ export function MechanicDashboardComplete() {
           style: 'default',
           onPress: async () => {
             try {
-              const token = await AsyncStorage.getItem('authToken');
-              // const response = await fetch(`/api/atribuicoes-servicos/${assignmentId}/aceitar`, {
-              //   method: 'PATCH',
-              //   headers: { 'Authorization': `Bearer ${token}` }
-              // });
-
               // Simulação local
-              setAssignments(prev => 
-                prev.map(assignment => 
-                  assignment.id === assignmentId 
+              setAssignments(prev =>
+                prev.map(assignment =>
+                  assignment.id === assignmentId
                     ? { ...assignment, status: "ACEITA", decidedAt: new Date().toISOString() }
                     : assignment
                 )
               );
-              
+
+
               Alert.alert('Sucesso!', 'Serviço aceito com sucesso!');
             } catch (error) {
               console.error('Erro ao aceitar serviço:', error);
@@ -240,21 +204,15 @@ export function MechanicDashboardComplete() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const token = await AsyncStorage.getItem('authToken');
-              // const response = await fetch(`/api/atribuicoes-servicos/${assignmentId}/recusar`, {
-              //   method: 'PATCH',
-              //   headers: { 'Authorization': `Bearer ${token}` }
-              // });
-
               // Simulação local
-              setAssignments(prev => 
-                prev.map(assignment => 
-                  assignment.id === assignmentId 
+              setAssignments(prev =>
+                prev.map(assignment =>
+                  assignment.id === assignmentId
                     ? { ...assignment, status: "RECUSADA", decidedAt: new Date().toISOString() }
                     : assignment
                 )
               );
-              
+
               Alert.alert('Recusado', 'Serviço recusado');
             } catch (error) {
               console.error('Erro ao recusar serviço:', error);
@@ -325,7 +283,7 @@ export function MechanicDashboardComplete() {
   // Filtros
   const pendingAssignments = assignments.filter(a => a.status === 'PENDENTE');
   const acceptedAssignments = assignments.filter(a => a.status === 'ACEITA' && a.solicitacaoServico.status !== 'CONCLUIDA');
-  const completedAssignments = assignments.filter(a => 
+  const completedAssignments = assignments.filter(a =>
     a.status === 'RECUSADA' || a.status === 'CANCELADA' || a.solicitacaoServico.status === 'CONCLUIDA'
   );
 
@@ -357,7 +315,7 @@ export function MechanicDashboardComplete() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -380,8 +338,8 @@ export function MechanicDashboardComplete() {
       </View>
 
       {/* Stats */}
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.statsScrollView}
         contentContainerStyle={styles.statsContainer}
@@ -420,7 +378,7 @@ export function MechanicDashboardComplete() {
             </View>
           )}
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.tab, activeTab === 'active' && styles.activeTab]}
           onPress={() => setActiveTab('active')}
@@ -446,7 +404,7 @@ export function MechanicDashboardComplete() {
       </View>
 
       {/* Content */}
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -542,14 +500,14 @@ interface ServiceCardProps {
   isLast: boolean;
 }
 
-function ServiceCard({ 
-  assignment, 
-  onAccept, 
-  onReject, 
+function ServiceCard({
+  assignment,
+  onAccept,
+  onReject,
   onCall,
   onOpenLocation,
   onShowDetail,
-  showActions, 
+  showActions,
   formatDate,
   getStatusIcon,
   getStatusColor,
@@ -558,17 +516,17 @@ function ServiceCard({
   const { solicitacaoServico } = assignment;
 
   return (
-    <TouchableOpacity 
-      style={[styles.serviceCard, isLast && styles.lastCard]} 
+    <TouchableOpacity
+      style={[styles.serviceCard, isLast && styles.lastCard]}
       onPress={onShowDetail}
       activeOpacity={0.7}
     >
       {/* Status Badge */}
       <View style={[styles.statusBadge, { backgroundColor: getStatusColor(assignment.status) }]}>
-        <Ionicons 
-          name={getStatusIcon(assignment.status) as any} 
-          size={16} 
-          color="#ffffff" 
+        <Ionicons
+          name={getStatusIcon(assignment.status) as any}
+          size={16}
+          color="#ffffff"
         />
         <Text style={styles.statusText}>{assignment.status}</Text>
       </View>
@@ -578,7 +536,7 @@ function ServiceCard({
         <Text style={styles.machineType}>
           {solicitacaoServico.machineType || 'Equipamento'}
         </Text>
-        
+
         <View style={styles.cardInfo}>
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={14} color="#6b7280" />
@@ -629,8 +587,8 @@ function ServiceCard({
       {assignment.status === 'ACEITA' && (
         <View style={styles.contactActions}>
           {solicitacaoServico.producer.phone && (
-            <TouchableOpacity 
-              style={styles.contactBtn} 
+            <TouchableOpacity
+              style={styles.contactBtn}
               onPress={() => onCall(solicitacaoServico.producer.phone!)}
             >
               <Ionicons name="call" size={16} color="#3b82f6" />
@@ -638,8 +596,8 @@ function ServiceCard({
             </TouchableOpacity>
           )}
           {solicitacaoServico.locationLat && (
-            <TouchableOpacity 
-              style={styles.contactBtn} 
+            <TouchableOpacity
+              style={styles.contactBtn}
               onPress={() => onOpenLocation(solicitacaoServico.locationLat!, solicitacaoServico.locationLng!)}
             >
               <Ionicons name="location" size={16} color="#3b82f6" />
@@ -661,13 +619,13 @@ interface DetailModalProps {
   getStatusIcon: (status: string) => string;
 }
 
-function DetailModal({ 
-  visible, 
-  assignment, 
-  onClose, 
-  formatDate, 
-  getStatusColor, 
-  getStatusIcon 
+function DetailModal({
+  visible,
+  assignment,
+  onClose,
+  formatDate,
+  getStatusColor,
+  getStatusIcon
 }: DetailModalProps) {
   if (!assignment) return null;
 
@@ -743,7 +701,7 @@ function DetailModal({
           {solicitacaoServico.locationLat && solicitacaoServico.locationLng && (
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Localização</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.locationButton}
                 onPress={() => {
                   const url = `https://maps.google.com/?q=${solicitacaoServico.locationLat},${solicitacaoServico.locationLng}`;
@@ -780,9 +738,9 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
-    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    paddingBottom: 0,
   },
   headerContent: {
     flexDirection: 'row',
@@ -834,7 +792,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   statsScrollView: {
-    paddingVertical: 20,
+    paddingVertical: 9,
+    height: 20,
   },
   statsContainer: {
     paddingHorizontal: 20,
@@ -842,7 +801,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: 120,
-    padding: 20,
+    height: 120,
     borderRadius: 16,
     alignItems: 'center',
     gap: 8,
@@ -872,7 +831,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     borderRadius: 12,
     padding: 4,
-    marginBottom: 20,
+    paddingTop: 0,
+    marginTop: 0, // Ajustar para remover o espaço acima das tabs
+    marginBottom: 10, // Ajuste opcional para dar um pequeno espaço abaixo das tabs
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -916,12 +877,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 0
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 80,
+    paddingVertical: 40,
     gap: 16,
   },
   emptyTitle: {
@@ -940,7 +902,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

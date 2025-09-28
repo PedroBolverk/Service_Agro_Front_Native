@@ -6,7 +6,7 @@ export default function Profile() {
   const { token, user } = useAuth();  // Pegando token e usuário com a role
 
   const MechanicComp = require('../../components/ProfileScreen').default;  // Componente para mecânico
-  const ProducerComp = require('../../src/screens/ProducerMap').default;  // Componente para produtor
+  const ProducerComp = require('../../components/ProfileScreen').default;  // Componente para produtor
 
   if (!token) {
     return (

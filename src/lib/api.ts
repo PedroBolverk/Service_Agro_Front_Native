@@ -35,8 +35,9 @@ export async function api(
     }
     return res.json();
   } catch (err: any) {
-  const msg = err?.message?.includes('Timeout') ? 'Tempo esgotado ao conectar no servidor' : (err?.message || String(err));
-  console.log('[API ERROR]', url, msg);
-  throw new Error(msg);
+    const msg = err?.message?.includes('Timeout') ? 'Tempo esgotado ao conectar no servidor' : (err?.message || String(err));
+    console.log('[API ERROR]', url, msg);
+    throw new Error(msg);
+  }
 }
-}
+
