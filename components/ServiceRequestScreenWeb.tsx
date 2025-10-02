@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { View, Dimensions, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome5';
+const { width } = Dimensions.get('window');
 import { useAuth } from '../src/store/auth'; // Certifique-se de que o hook useAuth está retornando o 'user'
 import { useRouter } from 'expo-router';
 import axios from 'axios'; // Biblioteca para fazer requisições HTTP
@@ -24,12 +25,12 @@ interface MachineType {
 }
 
 const machineTypes: MachineType[] = [
-  { id: 'trator', name: 'Trator', icon: 'tractor', description: 'Tratores agrícolas e implementos' },
-  { id: 'colheitadeira', name: 'Colheitadeira', icon: 'wheat', description: 'Máquinas de colheita' },
-  { id: 'pulverizador', name: 'Pulverizador', icon: 'droplet', description: 'Equipamentos de pulverização' },
-  { id: 'plantadeira', name: 'Plantadeira', icon: 'leaf', description: 'Máquinas de plantio' },
-  { id: 'caminhao', name: 'Caminhão', icon: 'truck', description: 'Veículos de transporte' },
-  { id: 'implemento', name: 'Implemento', icon: 'wrench', description: 'Outros implementos agrícolas' }
+  { id: 'trator', name: '  Trator', icon: 'tractor', description: '  Tratores agrícolas e implementos' },
+  { id: 'colheitadeira', name: '  Colheitadeira', icon: 'feather-alt', description: '  Máquinas de colheita' },
+  { id: 'pulverizador', name: '  Pulverizador', icon: 'water', description: '  Equipamentos de pulverização' },
+  { id: 'plantadeira', name: '  Plantadeira', icon: 'leaf', description: '  Máquinas de plantio' },
+  { id: 'caminhao', name: '  Caminhão', icon: 'truck', description: '  Veículos de transporte' },
+  { id: 'implemento', name: '  Implemento', icon: 'wrench', description: '  Outros implementos agrícolas' }
 ];
 
 const urgencyLevels = [
@@ -273,6 +274,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
     padding: 16,
+    paddingTop: 60,
   },
   header: {
     paddingBottom: 24,

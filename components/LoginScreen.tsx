@@ -1,11 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
-interface LoginScreenProps {
-  onLogin: () => void;
-}
+export default function LoginScreen() {
+  const router = useRouter();
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+  const handleLogin = () => {
+    // Aqui você pode incluir qualquer lógica de autenticação necessária.
+    // Após a autenticação bem-sucedida, navega para a rota desejada.
+    router.replace('/(tabs)/dashboard'); // Redireciona para a tela de dashboard diretamente
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.formContainer}>
@@ -26,7 +31,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         {/* Login Form */}
         <View style={styles.form}>
           <TouchableOpacity 
-            onPress={onLogin}
+            onPress={handleLogin} // Função chamada ao pressionar o botão
             style={styles.loginButton}
           >
             <Text style={styles.loginButtonText}>Entrar no Aplicativo</Text>
@@ -49,7 +54,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f7f7f7', // ou qualquer cor que você queira
+    backgroundColor: '#f7f7f7',
   },
   formContainer: {
     width: '100%',
@@ -74,20 +79,16 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    resizeMode: 'cover', // Faz a imagem preencher o espaço sem distorção
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    resizeMode: 'cover',
   },
   logoText: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#4CAF50', // ou a cor que você deseja para o texto
+    color: '#4CAF50',
   },
   subText: {
     fontSize: 14,
-    color: '#6B7280', // cor de texto sutil
+    color: '#6B7280',
     textAlign: 'center',
   },
   form: {
@@ -111,6 +112,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6B7280', // cor de texto sutil
+    color: '#6B7280',
   },
 });

@@ -23,7 +23,7 @@ export default function RootLayout() {
     } else {
       if (inAuth) {
         // Redireciona baseado no papel do usuário
-        const route = user.role === 'PRODUCER' ? '/(tabs)/index' : '/(tabs)/map';
+        const route = user.role === 'PRODUCER' ? '/index' : '/index';
         router.replace(route as any);  // Corrigido para usar a variável `route` corretamente
       }
     }

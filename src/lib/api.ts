@@ -1,6 +1,7 @@
 import { API_HOST } from '../config';
 
 let AUTH_TOKEN: string | null = null;
+
 export function setAuthToken(token: string | null) {
   AUTH_TOKEN = token;
 }
@@ -13,13 +14,23 @@ function withTimeout<T>(p: Promise<T>, ms = 10000): Promise<T> {
   });
 }
 
+// Tipagem das opções de configuração para a requisição
+interface ApiRequestOptions {
+  method?: string;
+  body?: any;
+  token?: string | null;
+  headers?: Record<string, string>;
+}
+
 export async function api(
   path: string,
-  opts?: { method?: string; body?: any; token?: string | null }
+  opts?: ApiRequestOptions // Tipagem explícita da opção
 ) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = opts?.token ?? AUTH_TOKEN;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   const url = `${API_HOST}${path}`;
   try {
@@ -40,4 +51,3 @@ export async function api(
     throw new Error(msg);
   }
 }
-

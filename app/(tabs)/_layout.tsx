@@ -1,12 +1,18 @@
-import { Tabs } from 'expo-router'; // Importa o componente Tabs do expo-router
+import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useAuth } from '../../src/store/auth';
 
 export default function TabsLayout() {
+  const { user } = useAuth();
+
+  // Exibe a aba "Serviços" apenas para produtores
+  const isProducer = user?.role === 'PRODUCER';
+
   return (
-    <Tabs>
-      {/* Dashboard Tab */}
+    <Tabs initialRouteName="index" screenOptions={{ headerShown: false }}>
+      {/* Dashboard / Home */}
       <Tabs.Screen
-        name="index" // Nome da rota para a tela inicial
+        name="index" // arquivo: app/(tabs)/index.tsx
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
@@ -14,19 +20,23 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Service Selection Tab */}
+
+      {/* Serviços (somente para produtores) */}
+      {isProducer && (
+        <Tabs.Screen
+          name="serviceselection"
+          options={{
+            title: 'Serviços',
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="list" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+
+      {/* Mapa */}
       <Tabs.Screen
-        name="serviceselection" // Nome da rota para a tela de serviços
-        options={{
-          title: 'Serviços',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="list" size={size} color={color} />
-          ),
-        }}
-      />
-      {/* Map Tab */}
-      <Tabs.Screen
-        name="map" // Nome da rota para a tela de mapa
+        name="map" // arquivo: app/(tabs)/map.tsx
         options={{
           title: 'Mapa',
           tabBarIcon: ({ color, size }) => (
@@ -34,9 +44,10 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Profile Tab */}
+
+      {/* Perfil */}
       <Tabs.Screen
-        name="profile" // Nome da rota para a tela de perfil
+        name="profile" // arquivo: app/(tabs)/profile.tsx
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => (
