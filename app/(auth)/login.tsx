@@ -6,8 +6,8 @@ import { useAuth } from '../../src/store/auth';
 
 export default function Login() {
     const { signIn } = useAuth();
-    const [email, setEmail] = useState('prod@teste.com');
-    const [password, setPassword] = useState('123456');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const onSubmit = async () => {

@@ -8,11 +8,11 @@ type Role = 'PRODUCER' | 'MECHANIC';
 export default function Signup() { // 👈 default export obrigatório
   const { signUp } = useAuth();
 
-  const [fullName, setFullName] = useState('Novo Usuário');
-  const [email, setEmail] = useState('novo@teste.com');
-  const [password, setPassword] = useState('123456');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('PRODUCER');
-  const [mechanicSpecialty, setMechanicSpecialty] = useState('Colheitadeira');
+  const [mechanicSpecialty, setMechanicSpecialty] = useState('');
   const [loading, setLoading] = useState(false);
 
   const RoleChip = ({ value, label }: { value: Role; label: string }) => {

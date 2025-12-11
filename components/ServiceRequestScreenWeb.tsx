@@ -5,6 +5,7 @@ const { width } = Dimensions.get('window');
 import { useAuth } from '../src/store/auth'; // Certifique-se de que o hook useAuth está retornando o 'user'
 import { useRouter } from 'expo-router';
 import axios from 'axios'; // Biblioteca para fazer requisições HTTP
+import { Screen } from './layout/Screen';
 
 interface ServiceRequestData {
   machineType: string;
@@ -92,7 +93,7 @@ export function ServiceRequestScreen() {
     setIsSubmitting(true);
 
     try {
-      const response = await axios.post('http://192.168.1.101:3000/solicitacoes-servicos', {
+      const response = await axios.post('http://192.168.0.73:3000/solicitacoes-servicos', {
         producerId: user.id, // Usando o ID do usuário autenticado
         description: requestData.description.trim(),
         machineType: requestData.machineType,
@@ -124,148 +125,150 @@ export function ServiceRequestScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Nova Solicitação</Text>
-        <Text style={styles.subtitle}>Descreva o problema do seu equipamento</Text>
-      </View>
+    <Screen scroll>
+      <ScrollView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Nova Solicitação</Text>
+          <Text style={styles.subtitle}>Descreva o problema do seu equipamento</Text>
+        </View>
 
-      {/* Machine Type Selection */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Tipo de Equipamento *</Text>
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() => setShowMachineTypePicker(true)} // Exibe o modal
-        >
-          <View style={styles.selectContent}>
-            {getSelectedMachineType() ? (
-              <>
-                <Icon name={getSelectedMachineType()?.icon || 'wrench'} size={24} color="#6b7280" />
-                <View style={styles.selectTextContainer}>
-                  <Text style={styles.selectText}>
-                    {getSelectedMachineType()?.name}
-                  </Text>
-                  <Text style={styles.selectSubtext}>
-                    {getSelectedMachineType()?.description}
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.selectPlaceholder}>Selecione o tipo de equipamento</Text>
-            )}
-          </View>
-          <Icon name="chevron-down" size={16} color="#6b7280" />
-        </TouchableOpacity>
-      </View>
+        {/* Machine Type Selection */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Tipo de Equipamento *</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setShowMachineTypePicker(true)} // Exibe o modal
+          >
+            <View style={styles.selectContent}>
+              {getSelectedMachineType() ? (
+                <>
+                  <Icon name={getSelectedMachineType()?.icon || 'wrench'} size={24} color="#6b7280" />
+                  <View style={styles.selectTextContainer}>
+                    <Text style={styles.selectText}>
+                      {getSelectedMachineType()?.name}
+                    </Text>
+                    <Text style={styles.selectSubtext}>
+                      {getSelectedMachineType()?.description}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.selectPlaceholder}>Selecione o tipo de equipamento</Text>
+              )}
+            </View>
+            <Icon name="chevron-down" size={16} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Urgency Selection */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Urgência</Text>
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() => setShowUrgencyPicker(true)} // Exibe o modal
+        {/* Urgency Selection */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Urgência</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setShowUrgencyPicker(true)} // Exibe o modal
+          >
+            <View style={styles.selectContent}>
+              <View style={[styles.urgencyIndicator, { backgroundColor: getSelectedUrgency()?.color }]} />
+              <View style={styles.selectTextContainer}>
+                <Text style={styles.selectText}>{getSelectedUrgency()?.name}</Text>
+                <Text style={styles.selectSubtext}>{getSelectedUrgency()?.description}</Text>
+              </View>
+            </View>
+            <Icon name="chevron-down" size={16} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Description */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Descrição do Problema *</Text>
+          <TextInput
+            style={styles.textArea}
+            multiline
+            placeholder="Descreva detalhadamente o problema do equipamento..."
+            value={requestData.description}
+            onChangeText={(text) => setRequestData(prev => ({
+              ...prev,
+              description: text
+            }))}
+          />
+          <Text style={styles.charCounter}>
+            {requestData.description.length} / 500 caracteres
+          </Text>
+        </View>
+
+        {/* Submit Button */}
+        <View style={styles.submitContainer}>
+          <TouchableOpacity
+            style={[styles.submitButton, !requestData.machineType || !requestData.description.trim() || isSubmitting ? styles.submitButtonDisabled : {}]}
+            onPress={handleSubmit}
+            disabled={!requestData.machineType || !requestData.description.trim() || isSubmitting}
+          >
+            <Text style={[styles.submitButtonText, !requestData.machineType || !requestData.description.trim() || isSubmitting ? styles.submitButtonTextDisabled : {}]}>
+              {isSubmitting ? 'Enviando...' : 'Solicitar Atendimento'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Modal para Seleção de Tipo de Equipamento */}
+        <Modal
+          transparent={true}
+          visible={showMachineTypePicker}
+          animationType="slide"
+          onRequestClose={() => setShowMachineTypePicker(false)}
         >
-          <View style={styles.selectContent}>
-            <View style={[styles.urgencyIndicator, { backgroundColor: getSelectedUrgency()?.color }]} />
-            <View style={styles.selectTextContainer}>
-              <Text style={styles.selectText}>{getSelectedUrgency()?.name}</Text>
-              <Text style={styles.selectSubtext}>{getSelectedUrgency()?.description}</Text>
+          <View style={styles.modalOverlay} onTouchEnd={() => setShowMachineTypePicker(false)}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Selecionar Equipamento</Text>
+              <ScrollView>
+                {machineTypes.map((type) => (
+                  <TouchableOpacity
+                    key={type.id}
+                    style={styles.optionItem}
+                    onPress={() => handleMachineTypeSelect(type)}
+                  >
+                    <Icon name={type.icon} size={24} color="#6b7280" />
+                    <View style={styles.optionContent}>
+                      <Text style={styles.optionName}>{type.name}</Text>
+                      <Text style={styles.optionDescription}>{type.description}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           </View>
-          <Icon name="chevron-down" size={16} color="#6b7280" />
-        </TouchableOpacity>
-      </View>
+        </Modal>
 
-      {/* Description */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Descrição do Problema *</Text>
-        <TextInput
-          style={styles.textArea}
-          multiline
-          placeholder="Descreva detalhadamente o problema do equipamento..."
-          value={requestData.description}
-          onChangeText={(text) => setRequestData(prev => ({
-            ...prev, 
-            description: text
-          }))} 
-        />
-        <Text style={styles.charCounter}>
-          {requestData.description.length} / 500 caracteres
-        </Text>
-      </View>
-
-      {/* Submit Button */}
-      <View style={styles.submitContainer}>
-        <TouchableOpacity
-          style={[styles.submitButton, !requestData.machineType || !requestData.description.trim() || isSubmitting ? styles.submitButtonDisabled : {}]}
-          onPress={handleSubmit}
-          disabled={!requestData.machineType || !requestData.description.trim() || isSubmitting}
+        {/* Modal para Seleção de Urgência */}
+        <Modal
+          transparent={true}
+          visible={showUrgencyPicker}
+          animationType="slide"
+          onRequestClose={() => setShowUrgencyPicker(false)}
         >
-          <Text style={[styles.submitButtonText, !requestData.machineType || !requestData.description.trim() || isSubmitting ? styles.submitButtonTextDisabled : {}]}>
-            {isSubmitting ? 'Enviando...' : 'Solicitar Atendimento'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modal para Seleção de Tipo de Equipamento */}
-      <Modal
-        transparent={true}
-        visible={showMachineTypePicker}
-        animationType="slide"
-        onRequestClose={() => setShowMachineTypePicker(false)}
-      >
-        <View style={styles.modalOverlay} onTouchEnd={() => setShowMachineTypePicker(false)}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Selecionar Equipamento</Text>
-            <ScrollView>
-              {machineTypes.map((type) => (
-                <TouchableOpacity
-                  key={type.id}
-                  style={styles.optionItem}
-                  onPress={() => handleMachineTypeSelect(type)}
-                >
-                  <Icon name={type.icon} size={24} color="#6b7280" />
-                  <View style={styles.optionContent}>
-                    <Text style={styles.optionName}>{type.name}</Text>
-                    <Text style={styles.optionDescription}>{type.description}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+          <View style={styles.modalOverlay} onTouchEnd={() => setShowUrgencyPicker(false)}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Nível de Urgência</Text>
+              <ScrollView>
+                {urgencyLevels.map((level) => (
+                  <TouchableOpacity
+                    key={level.id}
+                    style={styles.optionItem}
+                    onPress={() => handleUrgencySelect(level)}
+                  >
+                    <View style={[styles.urgencyIndicator, { backgroundColor: level.color }]} />
+                    <View style={styles.optionContent}>
+                      <Text style={styles.optionName}>{level.name}</Text>
+                      <Text style={styles.optionDescription}>{level.description}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
-
-      {/* Modal para Seleção de Urgência */}
-      <Modal
-        transparent={true}
-        visible={showUrgencyPicker}
-        animationType="slide"
-        onRequestClose={() => setShowUrgencyPicker(false)}
-      >
-        <View style={styles.modalOverlay} onTouchEnd={() => setShowUrgencyPicker(false)}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Nível de Urgência</Text>
-            <ScrollView>
-              {urgencyLevels.map((level) => (
-                <TouchableOpacity
-                  key={level.id}
-                  style={styles.optionItem}
-                  onPress={() => handleUrgencySelect(level)}
-                >
-                  <View style={[styles.urgencyIndicator, { backgroundColor: level.color }]} />
-                  <View style={styles.optionContent}>
-                    <Text style={styles.optionName}>{level.name}</Text>
-                    <Text style={styles.optionDescription}>{level.description}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+      </ScrollView>
+    </Screen>
   );
 }
 

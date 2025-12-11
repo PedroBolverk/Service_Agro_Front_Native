@@ -26,6 +26,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="serviceselection"
           options={{
+            href: null,
             title: 'Serviços',
             tabBarIcon: ({ color, size }) => (
               <Feather name="list" size={size} color={color} />

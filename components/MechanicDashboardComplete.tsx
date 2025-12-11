@@ -11,14 +11,14 @@ import {
   Linking,
   RefreshControl,
   Modal,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../src/lib/api';
+import { useAuth } from '../src/store/auth';
+import axios from 'axios';
 
 // Tipos
-
 interface MechanicDashBoardProps {
   token: string;
 }
@@ -31,213 +31,169 @@ interface Assignment {
   solicitacaoServico: {
     id: string;
     description: string;
-    machineType?: string;
-    locationLat?: number;
-    locationLng?: number;
+    machineType?: string | null;
+    locationLat?: number | null;
+    locationLng?: number | null;
     status: 'ABERTA' | 'ATRIBUIDA' | 'CANCELADA' | 'CONCLUIDA';
     createdAt: string;
-    producer: {
+    producer?: {
       fullName: string;
-      phone?: string;
+      phone?: string | null;
       email: string;
-    };
+    } | null;
   };
 }
-
-interface User {
-  id: string;
-  fullName: string;
-  role: 'MECHANIC';
-  mechanic: {
-    specialty: string;
-    photoUrl: string;
-    isAvailable: boolean;
-  };
-}
-
-// Mock data
-const mockUser: User = {
-  id: "mech-1",
-  fullName: "João Silva",
-  role: "MECHANIC",
-  mechanic: {
-    specialty: "Tratores e Implementos Agrícolas",
-    photoUrl: "",
-    isAvailable: true,
-  }
-};
-
-const mockAssignments: Assignment[] = [
-  {
-    id: "attr-1",
-    status: "PENDENTE",
-    createdAt: "2024-01-15T10:30:00Z",
-    solicitacaoServico: {
-      id: "sol-1",
-      description: "Trator John Deere 6600 apresentando problema no motor. Está fazendo ruído estranho durante operação e perdendo potência. Necessário diagnóstico urgente pois é época de colheita.",
-      machineType: "Trator",
-      locationLat: -23.5505,
-      locationLng: -46.6333,
-      status: "ATRIBUIDA",
-      createdAt: "2024-01-15T09:00:00Z",
-      producer: {
-        fullName: "Carlos Eduardo Santos",
-        phone: "(11) 98765-4321",
-        email: "carlos.santos@email.com"
-      }
-    }
-  },
-  {
-    id: "attr-2",
-    status: "PENDENTE",
-    createdAt: "2024-01-15T14:20:00Z",
-    solicitacaoServico: {
-      id: "sol-2",
-      description: "Colheitadeira Case IH com problema na esteira transportadora. Grãos estão caindo durante a colheita. Precisa de reparo rápido.",
-      machineType: "Colheitadeira",
-      status: "ATRIBUIDA",
-      createdAt: "2024-01-15T13:45:00Z",
-      producer: {
-        fullName: "Maria Oliveira",
-        phone: "(11) 99887-6655",
-        email: "maria.oliveira@fazenda.com"
-      }
-    }
-  },
-  {
-    id: "attr-3",
-    status: "ACEITA",
-    createdAt: "2024-01-14T08:00:00Z",
-    decidedAt: "2024-01-14T09:15:00Z",
-    solicitacaoServico: {
-      id: "sol-3",
-      description: "Plantadeira New Holland com problema no sistema de distribuição de sementes. Algumas fileiras não estão plantando corretamente.",
-      machineType: "Plantadeira",
-      locationLat: -23.6505,
-      locationLng: -46.7333,
-      status: "ATRIBUIDA",
-      createdAt: "2024-01-14T07:30:00Z",
-      producer: {
-        fullName: "Roberto Ferreira",
-        phone: "(11) 97654-3210",
-        email: "roberto@agrofazenda.com.br"
-      }
-    }
-  }
-];
 
 export default function MechanicDashboardComplete({ token }: MechanicDashBoardProps) {
-  const [assignments, setAssignments] = useState<Assignment[]>(mockAssignments);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed'>('pending');
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const { user } = useAuth();
+  const BASE_URL = 'http://192.168.0.73:3000';
+
+  // headers de auth para axios
+  const authHeaders = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+
+  // util para mostrar erros do backend
+  function showAxiosError(error: any, fallback = 'Ocorreu um erro') {
+    const msg = error?.response?.data?.message ?? error?.message ?? fallback;
+    console.log('AXIOS ERR:', {
+      url: error?.config?.url,
+      method: error?.config?.method,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    Alert.alert('Erro', Array.isArray(msg) ? msg.join('\n') : String(msg));
+  }
 
   // Efeitos
   useEffect(() => {
-    loadAssignments();
-  }, []);
+    if (user?.id) {
+      loadAssignments(user.id);
+    }
+  }, [user?.id]);
+
+  // chamadas à API conforme seu controller/service
+  async function aceitarAtribuicao(id: string) {
+    const url = `${BASE_URL}/atribuicoes-servicos/by-id/${id}/aceitar`;
+    console.log('→ PATCH', url);
+    return axios.patch(url, undefined, { headers: authHeaders, timeout: 12000 });
+  }
+
+  async function recusarAtribuicao(id: string) {
+    const url = `${BASE_URL}/atribuicoes-servicos/by-id/${id}/recusar`;
+    console.log('→ PATCH', url);
+    return axios.patch(url, undefined, { headers: authHeaders, timeout: 12000 });
+  }
+
+  async function cancelarAtribuicao(id: string) {
+    // se você adicionou a rota /cancelar no controller
+    const url = `${BASE_URL}/atribuicoes-servicos/by-id/${id}/cancelar`;
+    console.log('→ PATCH', url);
+    return axios.patch(url, undefined, { headers: authHeaders, timeout: 12000 });
+
+    // Alternativa (se não tiver /cancelar): 
+    // return axios.patch(`${BASE_URL}/atribuicoes-servicos/by-id/${id}`, { status: 'CANCELADA' }, { headers: authHeaders, timeout: 12000 });
+  }
+
+  // Evita transições inválidas no front
+  function canReject(a: Assignment) { return a.status === 'PENDENTE'; }
+  function canAccept(a: Assignment) { return a.status === 'PENDENTE'; }
+  function canCancel(a: Assignment) { return a.status === 'ACEITA'; }
 
   // Funções
-  const loadAssignments = async () => {
+  const loadAssignments = async (userId: string) => {
+    if (!userId) return;
     try {
       setIsLoading(true);
-      // Aqui você faria a chamada real para a API
-      if (token) {
-        // Simulação de chamada API
-        console.log('Autorização com token:', token);
-        // const response = await fetch(`/api/atribuicoes-servicos?mechanicId=${mockUser.id}`, {
-        //   headers: { 'Authorization': `Bearer ${token}` }
-        // });
-        // const data = await response.json();
-        // setAssignments(data);
-      }
+      const data = await api(`/atribuicoes-servicos/mechanic/${userId}`, { method: 'GET' });
+      setAssignments(data);
     } catch (error) {
-      console.error('Erro ao carregar atribuições:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os serviços');
+      console.error('Erro ao buscar atribuicoes:', error);
+      Alert.alert('Erro', 'Não foi possível carregar as atribuições.');
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handleAcceptService = async (assignmentId: string) => {
-    Alert.alert(
-      'Aceitar Serviço',
-      'Você tem certeza que deseja aceitar esta solicitação de serviço?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Aceitar',
-          style: 'default',
-          onPress: async () => {
-            try {
-              // Simulação local
-              setAssignments(prev =>
-                prev.map(assignment =>
-                  assignment.id === assignmentId
-                    ? { ...assignment, status: "ACEITA", decidedAt: new Date().toISOString() }
-                    : assignment
-                )
-              );
-
-
-              Alert.alert('Sucesso!', 'Serviço aceito com sucesso!');
-            } catch (error) {
-              console.error('Erro ao aceitar serviço:', error);
-              Alert.alert('Erro', 'Não foi possível aceitar o serviço');
-            }
+  // Handlers (recebem Assignment!)
+  const handleAcceptService = (assignment: Assignment) => {
+    if (!canAccept(assignment)) {
+      return Alert.alert('Ação inválida', `Não é possível aceitar quando está ${assignment.status}.`);
+    }
+    Alert.alert('Aceitar Serviço', 'Deseja aceitar esta solicitação?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Aceitar',
+        onPress: async () => {
+          try {
+            await aceitarAtribuicao(assignment.id);
+            if (user?.id) await loadAssignments(user.id);
+            Alert.alert('Sucesso', 'Serviço aceito!');
+          } catch (e) {
+            showAxiosError(e, 'Não foi possível aceitar.');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
-  const handleRejectService = async (assignmentId: string) => {
-    Alert.alert(
-      'Recusar Serviço',
-      'Você tem certeza que deseja recusar esta solicitação?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Recusar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Simulação local
-              setAssignments(prev =>
-                prev.map(assignment =>
-                  assignment.id === assignmentId
-                    ? { ...assignment, status: "RECUSADA", decidedAt: new Date().toISOString() }
-                    : assignment
-                )
-              );
-
-              Alert.alert('Recusado', 'Serviço recusado');
-            } catch (error) {
-              console.error('Erro ao recusar serviço:', error);
-              Alert.alert('Erro', 'Não foi possível recusar o serviço');
-            }
+  const handleRejectService = (assignment: Assignment) => {
+    if (!canReject(assignment)) {
+      return Alert.alert('Ação inválida', `Não é possível recusar quando está ${assignment.status}.`);
+    }
+    Alert.alert('Recusar Serviço', 'Deseja recusar esta solicitação?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Recusar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await recusarAtribuicao(assignment.id);
+            if (user?.id) await loadAssignments(user.id);
+            Alert.alert('Recusado', 'Serviço recusado.');
+          } catch (e) {
+            showAxiosError(e, 'Não foi possível recusar.');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
+  };
+
+  const handleCancelService = (assignment: Assignment) => {
+    if (!canCancel(assignment)) {
+      return Alert.alert('Ação inválida', `Só é possível cancelar quando está ACEITA.`);
+    }
+    Alert.alert('Cancelar atribuição', 'Confirmar cancelamento?', [
+      { text: 'Não', style: 'cancel' },
+      {
+        text: 'Cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelarAtribuicao(assignment.id);
+            if (user?.id) await loadAssignments(user.id);
+            Alert.alert('Cancelada', 'Atribuição cancelada.');
+          } catch (e) {
+            showAxiosError(e, 'Não foi possível cancelar.');
+          }
+        },
+      },
+    ]);
   };
 
   const handleCallProducer = (phone: string) => {
-    Alert.alert(
-      'Ligar para Produtor',
-      `Deseja ligar para ${phone}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Ligar',
-          onPress: () => {
-            Linking.openURL(`tel:${phone}`);
-          }
-        }
-      ]
-    );
+    Alert.alert('Ligar para Produtor', `Deseja ligar para ${phone}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Ligar', onPress: () => Linking.openURL(`tel:${phone}`) },
+    ]);
   };
 
   const handleOpenLocation = (lat: number, lng: number) => {
@@ -246,9 +202,10 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
   };
 
   const onRefresh = React.useCallback(() => {
+    if (!user?.id) return;
     setRefreshing(true);
-    loadAssignments().finally(() => setRefreshing(false));
-  }, []);
+    loadAssignments(user.id);
+  }, [user?.id]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -281,10 +238,12 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
   };
 
   // Filtros
-  const pendingAssignments = assignments.filter(a => a.status === 'PENDENTE');
-  const acceptedAssignments = assignments.filter(a => a.status === 'ACEITA' && a.solicitacaoServico.status !== 'CONCLUIDA');
-  const completedAssignments = assignments.filter(a =>
-    a.status === 'RECUSADA' || a.status === 'CANCELADA' || a.solicitacaoServico.status === 'CONCLUIDA'
+  const pendingAssignments = assignments.filter((a) => a.status === 'PENDENTE');
+  const acceptedAssignments = assignments.filter(
+    (a) => a.status === 'ACEITA' && a.solicitacaoServico.status !== 'CONCLUIDA'
+  );
+  const completedAssignments = assignments.filter(
+    (a) => a.status === 'RECUSADA' || a.status === 'CANCELADA' || a.solicitacaoServico.status === 'CONCLUIDA'
   );
 
   const getCurrentAssignments = () => {
@@ -326,12 +285,12 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
           <TouchableOpacity style={styles.profileButton}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {mockUser.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {user?.fullName.split(' ').map((n) => n[0]).join('').toUpperCase()}
               </Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{mockUser.fullName}</Text>
-              <Text style={styles.userSpecialty}>{mockUser.mechanic.specialty}</Text>
+              <Text style={styles.userName}>{user?.fullName}</Text>
+              <Text style={styles.userSpecialty}>{user?.role}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -369,9 +328,7 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
           style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
           onPress={() => setActiveTab('pending')}
         >
-          <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>
-            Pendentes
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>Pendentes</Text>
           {pendingAssignments.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{pendingAssignments.length}</Text>
@@ -383,9 +340,7 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
           style={[styles.tab, activeTab === 'active' && styles.activeTab]}
           onPress={() => setActiveTab('active')}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
-            Ativos
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>Ativos</Text>
           {acceptedAssignments.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{acceptedAssignments.length}</Text>
@@ -397,18 +352,14 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
           style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
           onPress={() => setActiveTab('completed')}
         >
-          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
-            Finalizados
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>Finalizados</Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       <ScrollView
         style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
         {getCurrentAssignments().length === 0 ? (
@@ -418,8 +369,9 @@ export default function MechanicDashboardComplete({ token }: MechanicDashBoardPr
             <ServiceCard
               key={assignment.id}
               assignment={assignment}
-              onAccept={() => handleAcceptService(assignment.id)}
-              onReject={() => handleRejectService(assignment.id)}
+              onAccept={() => handleAcceptService(assignment)}   // ✅ passa o objeto
+              onReject={() => handleRejectService(assignment)}   // ✅ passa o objeto
+              onCancel={() => handleCancelService(assignment)}   // ✅ passa o objeto
               onCall={(phone) => handleCallProducer(phone)}
               onOpenLocation={(lat, lng) => handleOpenLocation(lat, lng)}
               onShowDetail={() => showAssignmentDetail(assignment)}
@@ -455,28 +407,15 @@ function EmptyState({ activeTab }: EmptyStateProps) {
   const getEmptyContent = () => {
     switch (activeTab) {
       case 'pending':
-        return {
-          icon: 'time-outline',
-          title: 'Nenhum serviço pendente',
-          subtitle: 'Não há solicitações aguardando sua resposta no momento.',
-        };
+        return { icon: 'time-outline', title: 'Nenhum serviço pendente', subtitle: 'Não há solicitações aguardando sua resposta no momento.' };
       case 'active':
-        return {
-          icon: 'construct-outline',
-          title: 'Nenhum serviço ativo',
-          subtitle: 'Você não possui serviços em andamento atualmente.',
-        };
+        return { icon: 'construct-outline', title: 'Nenhum serviço ativo', subtitle: 'Você não possui serviços em andamento atualmente.' };
       case 'completed':
-        return {
-          icon: 'checkmark-circle-outline',
-          title: 'Histórico vazio',
-          subtitle: 'Seu histórico de serviços aparecerá aqui.',
-        };
+        return { icon: 'checkmark-circle-outline', title: 'Histórico vazio', subtitle: 'Seu histórico de serviços aparecerá aqui.' };
     }
   };
 
-  const { icon, title, subtitle } = getEmptyContent();
-
+  const { icon, title, subtitle } = getEmptyContent()!;
   return (
     <View style={styles.emptyState}>
       <Ionicons name={icon as any} size={80} color="#e5e7eb" />
@@ -490,6 +429,7 @@ interface ServiceCardProps {
   assignment: Assignment;
   onAccept: () => void;
   onReject: () => void;
+  onCancel: () => void;
   onCall: (phone: string) => void;
   onOpenLocation: (lat: number, lng: number) => void;
   onShowDetail: () => void;
@@ -504,6 +444,7 @@ function ServiceCard({
   assignment,
   onAccept,
   onReject,
+  onCancel,
   onCall,
   onOpenLocation,
   onShowDetail,
@@ -511,38 +452,27 @@ function ServiceCard({
   formatDate,
   getStatusIcon,
   getStatusColor,
-  isLast
+  isLast,
 }: ServiceCardProps) {
   const { solicitacaoServico } = assignment;
 
   return (
-    <TouchableOpacity
-      style={[styles.serviceCard, isLast && styles.lastCard]}
-      onPress={onShowDetail}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={[styles.serviceCard, isLast && styles.lastCard]} onPress={onShowDetail} activeOpacity={0.7}>
       {/* Status Badge */}
       <View style={[styles.statusBadge, { backgroundColor: getStatusColor(assignment.status) }]}>
-        <Ionicons
-          name={getStatusIcon(assignment.status) as any}
-          size={16}
-          color="#ffffff"
-        />
+        <Ionicons name={getStatusIcon(assignment.status) as any} size={16} color="#ffffff" />
         <Text style={styles.statusText}>{assignment.status}</Text>
       </View>
 
       {/* Header */}
       <View style={styles.cardHeader}>
-        <Text style={styles.machineType}>
-          {solicitacaoServico.machineType || 'Equipamento'}
-        </Text>
-
+        <Text style={styles.machineType}>{solicitacaoServico.machineType || 'Equipamento'}</Text>
         <View style={styles.cardInfo}>
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={14} color="#6b7280" />
             <Text style={styles.infoText}>{formatDate(solicitacaoServico.createdAt)}</Text>
           </View>
-          {solicitacaoServico.locationLat && (
+          {typeof solicitacaoServico.locationLat === 'number' && typeof solicitacaoServico.locationLng === 'number' && (
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={14} color="#6b7280" />
               <Text style={styles.infoText}>Localização</Text>
@@ -555,12 +485,16 @@ function ServiceCard({
       <View style={styles.producerSection}>
         <View style={styles.producerAvatar}>
           <Text style={styles.producerInitials}>
-            {solicitacaoServico.producer.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
+            {(solicitacaoServico.producer?.fullName ?? 'P')
+              .split(' ')
+              .map((n) => n[0])
+              .join('')
+              .toUpperCase()}
           </Text>
         </View>
         <View style={styles.producerInfo}>
-          <Text style={styles.producerName}>{solicitacaoServico.producer.fullName}</Text>
-          <Text style={styles.producerContact}>{solicitacaoServico.producer.email}</Text>
+          <Text style={styles.producerName}>{solicitacaoServico.producer?.fullName ?? 'Produtor não informado'}</Text>
+          {!!solicitacaoServico.producer?.email && <Text style={styles.producerContact}>{solicitacaoServico.producer.email}</Text>}
         </View>
       </View>
 
@@ -569,7 +503,7 @@ function ServiceCard({
         {solicitacaoServico.description}
       </Text>
 
-      {/* Actions */}
+      {/* Actions para pendentes */}
       {showActions && assignment.status === 'PENDENTE' && (
         <View style={styles.actions}>
           <TouchableOpacity style={styles.acceptBtn} onPress={onAccept}>
@@ -583,27 +517,31 @@ function ServiceCard({
         </View>
       )}
 
-      {/* Contact Actions */}
+      {/* Ações quando ACEITA */}
       {assignment.status === 'ACEITA' && (
         <View style={styles.contactActions}>
-          {solicitacaoServico.producer.phone && (
-            <TouchableOpacity
-              style={styles.contactBtn}
-              onPress={() => onCall(solicitacaoServico.producer.phone!)}
-            >
-              <Ionicons name="call" size={16} color="#3b82f6" />
+          {!!solicitacaoServico.producer?.phone && (
+            <TouchableOpacity style={styles.contactBtn} onPress={() => onCall(solicitacaoServico.producer!.phone!)}>
+              <Ionicons name="call" size={16} />
               <Text style={styles.contactBtnText}>Ligar</Text>
             </TouchableOpacity>
           )}
-          {solicitacaoServico.locationLat && (
+
+          {typeof solicitacaoServico.locationLat === 'number' && typeof solicitacaoServico.locationLng === 'number' && (
             <TouchableOpacity
               style={styles.contactBtn}
               onPress={() => onOpenLocation(solicitacaoServico.locationLat!, solicitacaoServico.locationLng!)}
             >
-              <Ionicons name="location" size={16} color="#3b82f6" />
-              <Text style={styles.contactBtnText}>Localização</Text>
+              <Ionicons name="navigate" size={16} />
+              <Text style={styles.contactBtnText}>Abrir no Maps</Text>
             </TouchableOpacity>
           )}
+
+          {/* botão cancelar atribuição */}
+          <TouchableOpacity style={[styles.contactBtn, { borderColor: '#ef4444' }]} onPress={onCancel}>
+            <Ionicons name="close-circle" size={16} />
+            <Text style={[styles.contactBtnText, { color: '#ef4444' }]}>Cancelar</Text>
+          </TouchableOpacity>
         </View>
       )}
     </TouchableOpacity>
@@ -619,25 +557,12 @@ interface DetailModalProps {
   getStatusIcon: (status: string) => string;
 }
 
-function DetailModal({
-  visible,
-  assignment,
-  onClose,
-  formatDate,
-  getStatusColor,
-  getStatusIcon
-}: DetailModalProps) {
+function DetailModal({ visible, assignment, onClose, formatDate, getStatusColor, getStatusIcon }: DetailModalProps) {
   if (!assignment) return null;
-
   const { solicitacaoServico } = assignment;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Detalhes do Serviço</Text>
@@ -654,9 +579,7 @@ function DetailModal({
           </View>
 
           {/* Machine Type */}
-          <Text style={styles.modalMachineType}>
-            {solicitacaoServico.machineType || 'Equipamento não especificado'}
-          </Text>
+          <Text style={styles.modalMachineType}>{solicitacaoServico.machineType || 'Equipamento não especificado'}</Text>
 
           {/* Dates */}
           <View style={styles.modalInfoGrid}>
@@ -678,15 +601,17 @@ function DetailModal({
             <View style={styles.modalProducerCard}>
               <View style={styles.modalProducerAvatar}>
                 <Text style={styles.modalProducerInitials}>
-                  {solicitacaoServico.producer.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  {(solicitacaoServico.producer?.fullName ?? 'P')
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()}
                 </Text>
               </View>
               <View style={styles.modalProducerInfo}>
-                <Text style={styles.modalProducerName}>{solicitacaoServico.producer.fullName}</Text>
-                <Text style={styles.modalProducerContact}>{solicitacaoServico.producer.email}</Text>
-                {solicitacaoServico.producer.phone && (
-                  <Text style={styles.modalProducerContact}>{solicitacaoServico.producer.phone}</Text>
-                )}
+                <Text style={styles.modalProducerName}>{solicitacaoServico.producer?.fullName ?? 'Não informado'}</Text>
+                {!!solicitacaoServico.producer?.email && <Text style={styles.modalProducerContact}>{solicitacaoServico.producer.email}</Text>}
+                {!!solicitacaoServico.producer?.phone && <Text style={styles.modalProducerContact}>{solicitacaoServico.producer.phone}</Text>}
               </View>
             </View>
           </View>
@@ -698,133 +623,52 @@ function DetailModal({
           </View>
 
           {/* Location */}
-          {solicitacaoServico.locationLat && solicitacaoServico.locationLng && (
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Localização</Text>
-              <TouchableOpacity
-                style={styles.locationButton}
-                onPress={() => {
-                  const url = `https://maps.google.com/?q=${solicitacaoServico.locationLat},${solicitacaoServico.locationLng}`;
-                  Linking.openURL(url);
-                }}
-              >
-                <Ionicons name="location" size={20} color="#3b82f6" />
-                <Text style={styles.locationButtonText}>Abrir no Maps</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {typeof solicitacaoServico.locationLat === 'number' &&
+            typeof solicitacaoServico.locationLng === 'number' && (
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Localização</Text>
+                <TouchableOpacity
+                  style={styles.locationButton}
+                  onPress={() => {
+                    const url = `https://maps.google.com/?q=${solicitacaoServico.locationLat},${solicitacaoServico.locationLng}`;
+                    Linking.openURL(url);
+                  }}
+                >
+                  <Ionicons name="location" size={20} color="#3b82f6" />
+                  <Text style={styles.locationButtonText}>Abrir no Maps</Text>
+                </TouchableOpacity>
+              </View>
+            )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
   );
 }
 
-// Estilos
+// Estilos (mantidos)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  header: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingBottom: 0,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#030213',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  profileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#030213',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  userInfo: {
-    alignItems: 'flex-end',
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#030213',
-  },
-  userSpecialty: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'right',
-  },
-  statsScrollView: {
-    paddingVertical: 9,
-    height: 20,
-  },
-  statsContainer: {
-    paddingHorizontal: 20,
-    gap: 16,
-  },
-  statCard: {
-    width: 120,
-    height: 120,
-    borderRadius: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  pendingCard: {
-    backgroundColor: '#fff7ed',
-  },
-  activeCard: {
-    backgroundColor: '#eff6ff',
-  },
-  completedCard: {
-    backgroundColor: '#f0fdf4',
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#030213',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { fontSize: 16, color: '#6b7280' },
+  header: { backgroundColor: '#ffffff', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingBottom: 0 },
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerLeft: { flex: 1 },
+  title: { fontSize: 24, fontWeight: '700', color: '#030213', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: '#6b7280' },
+  profileButton: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#030213', justifyContent: 'center', alignItems: 'center' },
+  avatarText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  userInfo: { alignItems: 'flex-end' },
+  userName: { fontSize: 16, fontWeight: '600', color: '#030213' },
+  userSpecialty: { fontSize: 12, color: '#6b7280', textAlign: 'right' },
+  statsScrollView: { paddingVertical: 9, height: 20 },
+  statsContainer: { paddingHorizontal: 20, gap: 16 },
+  statCard: { width: 120, height: 120, borderRadius: 16, alignItems: 'center', gap: 8 },
+  pendingCard: { backgroundColor: '#fff7ed' },
+  activeCard: { backgroundColor: '#eff6ff' },
+  completedCard: { backgroundColor: '#f0fdf4' },
+  statNumber: { fontSize: 28, fontWeight: '800', color: '#030213' },
+  statLabel: { fontSize: 12, fontWeight: '500', color: '#6b7280' },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
@@ -832,8 +676,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
     paddingTop: 0,
-    marginTop: 0, // Ajustar para remover o espaço acima das tabs
-    marginBottom: 10, // Ajuste opcional para dar um pequeno espaço abaixo das tabs
+    marginTop: 0,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -850,17 +694,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 6,
   },
-  activeTab: {
-    backgroundColor: '#030213',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  activeTabText: {
-    color: '#ffffff',
-  },
+  activeTab: { backgroundColor: '#030213' },
+  tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  activeTabText: { color: '#ffffff' },
   tabBadge: {
     backgroundColor: '#ef4444',
     borderRadius: 10,
@@ -869,35 +705,11 @@ const styles = StyleSheet.create({
     minWidth: 20,
     alignItems: 'center',
   },
-  tabBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 0
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#030213',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    lineHeight: 20,
-  },
+  tabBadgeText: { fontSize: 11, fontWeight: '600', color: '#ffffff' },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 0 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40, gap: 16 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#030213' },
+  emptySubtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 },
   serviceCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -909,9 +721,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  lastCard: {
-    marginBottom: 40,
-  },
+  lastCard: { marginBottom: 40 },
   statusBadge: {
     position: 'absolute',
     top: 16,
@@ -923,33 +733,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 4,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  cardHeader: {
-    marginBottom: 16,
-    paddingRight: 80,
-  },
-  machineType: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#030213',
-    marginBottom: 8,
-  },
-  cardInfo: {
-    gap: 4,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
+  statusText: { fontSize: 12, fontWeight: '600', color: '#ffffff' },
+  cardHeader: { marginBottom: 16, paddingRight: 80 },
+  machineType: { fontSize: 18, fontWeight: '700', color: '#030213', marginBottom: 8 },
+  cardInfo: { gap: 4 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  infoText: { fontSize: 12, color: '#6b7280' },
   producerSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -967,30 +756,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  producerInitials: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  producerInfo: {
-    flex: 1,
-  },
-  producerName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#030213',
-    marginBottom: 2,
-  },
-  producerContact: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  descriptionPreview: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
+  producerInitials: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  producerInfo: { flex: 1 },
+  producerName: { fontSize: 14, fontWeight: '600', color: '#030213', marginBottom: 2 },
+  producerContact: { fontSize: 12, color: '#6b7280' },
+  descriptionPreview: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 16 },
   actions: {
     flexDirection: 'row',
     gap: 12,
@@ -1008,11 +778,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 6,
   },
-  acceptBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
+  acceptBtnText: { fontSize: 14, fontWeight: '600', color: '#ffffff' },
   rejectBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -1025,11 +791,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 6,
   },
-  rejectBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ef4444',
-  },
+  rejectBtnText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
   contactActions: {
     flexDirection: 'row',
     gap: 12,
@@ -1049,16 +811,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 6,
   },
-  contactBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-  },
+  contactBtnText: { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
   // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
+  modalContainer: { flex: 1, backgroundColor: '#ffffff' },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1068,18 +823,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#030213',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
+  modalTitle: { fontSize: 20, fontWeight: '600', color: '#030213' },
+  closeButton: { padding: 4 },
+  modalContent: { flex: 1, padding: 20 },
   modalStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1090,46 +836,14 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 20,
   },
-  modalStatusText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  modalMachineType: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#030213',
-    marginBottom: 20,
-  },
-  modalInfoGrid: {
-    flexDirection: 'row',
-    gap: 20,
-    marginBottom: 24,
-  },
-  modalInfoItem: {
-    flex: 1,
-  },
-  modalInfoLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6b7280',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  modalInfoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#030213',
-  },
-  modalSection: {
-    marginBottom: 24,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#030213',
-    marginBottom: 12,
-  },
+  modalStatusText: { fontSize: 14, fontWeight: '600', color: '#ffffff' },
+  modalMachineType: { fontSize: 24, fontWeight: '700', color: '#030213', marginBottom: 20 },
+  modalInfoGrid: { flexDirection: 'row', gap: 20, marginBottom: 24 },
+  modalInfoItem: { flex: 1 },
+  modalInfoLabel: { fontSize: 12, fontWeight: '500', color: '#6b7280', marginBottom: 4, textTransform: 'uppercase' },
+  modalInfoValue: { fontSize: 14, fontWeight: '500', color: '#030213' },
+  modalSection: { marginBottom: 24 },
+  modalSectionTitle: { fontSize: 16, fontWeight: '600', color: '#030213', marginBottom: 12 },
   modalProducerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1138,38 +852,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 16,
   },
-  modalProducerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalProducerInitials: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  modalProducerInfo: {
-    flex: 1,
-  },
-  modalProducerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#030213',
-    marginBottom: 4,
-  },
-  modalProducerContact: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 2,
-  },
-  modalDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 22,
-  },
+  modalProducerAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center' },
+  modalProducerInitials: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  modalProducerInfo: { flex: 1 },
+  modalProducerName: { fontSize: 16, fontWeight: '600', color: '#030213', marginBottom: 4 },
+  modalProducerContact: { fontSize: 14, color: '#6b7280', marginBottom: 2 },
+  modalDescription: { fontSize: 14, color: '#6b7280', lineHeight: 22 },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1179,9 +867,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 8,
   },
-  locationButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-  },
+  locationButtonText: { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
 });
